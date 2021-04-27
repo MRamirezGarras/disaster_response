@@ -27,14 +27,27 @@ print(category_colnames)
 categories.columns = category_colnames
 categories.head()
 
+#remove text from values in categories, make numerical
 for col in categories.columns:
     categories[col] = categories[col].astype(str).str.split("-").str[1]
     categories[col] = pd.to_numeric(categories[col])
 categories.head()
 
+#check values in categories
+for col in categories.columns:
+    print(col, categories[col].unique())
+
+#There are two problems
+# - related has a number 2
+# - child_alone has only elements of one category
+
 #Fix related column
 categories.related[categories.related == 2] = 1
 categories.related.unique()
+
+#Remove child_alone, as it cannot be used for training
+
+categories.drop("child_alone", 1, inplace = True)
 
 # drop the original categories column from `df`
 df.drop("categories", 1, inplace = True)
@@ -51,5 +64,6 @@ df.drop_duplicates(inplace= True)
 # check number of duplicates
 df.duplicated().sum()
 
+#save data to sqlRe
 engine = create_engine('sqlite:///database_messages.db')
 df.to_sql('database_messages', engine, index=False)
