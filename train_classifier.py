@@ -30,12 +30,6 @@ df = pd.read_sql_table("database_messages", engine)
 X = df["message"]
 Y = df.iloc[:, 4:40]
 
-#Check the values for each column
-for col in Y:
-    print(col, ":", Y[col].unique())
-
-#The column "child_alone" has only one type of value, so I cannot be predicted. I remove it
-Y.drop("child_alone", axis = 1, inplace = True)
 
 def tokenize(text):
     """
@@ -51,101 +45,51 @@ def tokenize(text):
         clean_tokens.append(clean_tok)
     return(clean_tokens)
 
-###Model with Random Forest##########
 
-pipeline_rf = Pipeline([
-        ('vect', CountVectorizer(tokenizer=tokenize)),
-        ('tfidf', TfidfTransformer()),
-        ('clf', MultiOutputClassifier(RandomForestClassifier()))
-    ])
-
-#Split data in train and test
-x_train, x_test, y_train, y_test = train_test_split(X, Y, random_state=17)
-
-pipeline_rf.fit(x_train, y_train)#Fit the model
-y_pred = pipeline_rf.predict(x_test)#Predict using the test set
-y_pred = pd.DataFrame.from_records(y_pred)#Store the predictions in a dataframe
-y_pred.columns = y_test.columns
-
-#Creates lists to save the f1 score, recall and precision for each column
-f1scores_rf = []
-recallscores_rf = []
-precisionscores_rf = []
-
-for col in y_test:
-    f1scores_rf.append(f1_score(y_test[col], y_pred[col], average="weighted"))
-    recallscores_rf.append(recall_score(y_test[col], y_pred[col], average="weighted"))
-    precisionscores_rf.append(precision_score(y_test[col], y_pred[col], average="weighted"))
-
-rf_model_result = pd.DataFrame(list(zip(y_test.columns, f1scores_rf, recallscores_rf, precisionscores_rf)),
-                                  columns= ["Column", "F1_score", "Recall", "Precision"])
-
-
-def tune_model_rf():
+def scores(pred, test):
     """
-    Returns a model with a list of parameters to feed to GridSearchCV
+    Prints f1 score, recall and precision for each column.
+    Prints mean f1 score, recall and precision for all columns
+    Saves all values in a dataframe
+
+    INPUT:
+    pred: predictions from a model
+    test: real values
+
+    OUTPUT:
+    result: dataframe with the f1 score, recall and precision for each column
     """
-    pipeline = Pipeline([
-        ('vect', CountVectorizer(tokenizer=tokenize)),
-        ('tfidf', TfidfTransformer()),
-        ('clf', MultiOutputClassifier(RandomForestClassifier()))
-    ])
 
-    parameters = {
-        'vect__ngram_range': ((1, 1), (1, 2)),
-        'vect__max_df': (0.5, 0.75, 1.0),
-        'vect__max_features': (None, 5000, 10000),
-        'tfidf__use_idf': (True, False),
-        'clf__estimator_n_estimators': [50, 100, 200],
-        'clf__estimator_min_samples_split': [2, 3, 4],
-        }
+    # Creates lists to save the f1 score, recall and precision for each column
+    f1scores = []
+    recallscores = []
+    precisionscores = []
 
-    cv = GridSearchCV(pipeline, param_grid=parameters)
+    for col in test:
+        print(col)
+        f1score = f1_score(test[col], pred[col], average="weighted")
+        f1scores.append(f1score)
+        print("F1 score: ", f1score))
+        recallscore = recall_score(test[col], pred[col], average="weighted")
+        recallscores.append(recallscore)
+        print("Recall score: ", recallscore)
+        precisionscore = precision_score(test[col], pred[col], average="weighted")
+        precisionscores.append(precisionscore)
+        print("Precision score: ", precisionscore)
 
-    return cv
+        result = pd.DataFrame(list(zip(test.columns, f1scores, recallscores, precisionscores)),
+        columns = ["Column", "F1_score", "Recall", "Precision"])
 
-#I decreased the size of the train size because the fit() function run for too long
-x_train_sample, x_test_sample, y_train_sample, y_test_sample = train_test_split(X, Y, random_state=17, train_size=0.1)
-model = tune_model_rf()
-print("Model built")
-model.fit(x_train_sample, y_train_sample)
-print("Model fitted")
-y_pred = model.predict(x_test_sample)
-print("Best Parameters:", model.best_params_)
-
-#Create pipeline for the parameters selected
-pipeline_rf_tuned = Pipeline([
-        ('vect', CountVectorizer(tokenizer=tokenize, max_df=0.5, ngram_range=((1,1), (1,2)), max_features=None)),
-        ('tfidf', TfidfTransformer(use_idf=False)),
-        ('svm', MultiOutputClassifier(RandomForestClassifier(min_samples_split = 4, n_estimators = 100)))
-    ])
-
-#Train the model
-pipeline_rf_tuned.fit(x_train, y_train)
-
-y_pred = pipeline_rf_tuned.predict(x_test)
-y_pred = pd.DataFrame.from_records(y_pred)
-y_pred.columns = y_test.columns
-
-f1scores_rf_tuned = []
-recallscores_rf_tuned = []
-precisionscores_rf_tuned = []
-for col in y_test:
-    f1scores_rf_tuned.append(f1_score(y_test[col], y_pred[col], average="weighted"))
-    recallscores_rf_tuned.append(recall_score(y_test[col], y_pred[col], average="weighted"))
-    precisionscores_rf_tuned.append(precision_score(y_test[col], y_pred[col], average="weighted"))
-
-rf_tuned_result = pd.DataFrame(list(zip(y_test.columns, f1scores_rf_tuned, recallscores_rf_tuned, precisionscores_rf_tuned)),
-                                      columns=["Column", "F1_score", "Recall", "Precision"])
-
-print("Mean F1 score rf tuned model:", mean(f1scores_rf_tuned))
-print("Mean recall score rf tuned model:", mean(recallscores_rf_tuned))
-print("Mean precision score rf tuned model:", mean(precisionscores_rf_tuned))
+        print("Mean F1 score svm model:", mean(f1scores))
+        print("Mean recall svm simple model:", mean(recallscores))
+        print("Mean precision score svm model:", mean(precisionscores))
 
 
+return (result)
+
+#####SVM model############
 
 
-#####Try SVM model############
 
 pipeline_svm = Pipeline([
         ('vect', CountVectorizer(tokenizer=tokenize)),
@@ -158,23 +102,12 @@ y_pred = pipeline_svm.predict(x_test)#Predict using the test set
 y_pred = pd.DataFrame.from_records(y_pred)#Store the predictions in a dataframe
 y_pred.columns = y_test.columns
 
-#Creates lists to save the f1 score, recall and precision for each column
-f1scores_svm = []
-recallscores_svm = []
-precisionscores_svm = []
 
-for col in y_test:
-    f1scores_svm.append(f1_score(y_test[col], y_pred[col], average="weighted"))
-    recallscores_svm.append(recall_score(y_test[col], y_pred[col], average="weighted"))
-    precisionscores_svm.append(precision_score(y_test[col], y_pred[col], average="weighted"))
+svm_model_result = scores(y_pred, y_test)
 
-first_model_result = pd.DataFrame(list(zip(y_test.columns, f1scores_svm, recallscores_svm, precisionscores_svm)),
-                                  columns= ["Column", "F1_score", "Recall", "Precision"])
-
-print("Mean F1 score svm model:", mean(f1scores_svm))
-print("Mean recall svm simple model:", mean(recallscores_svm))
-print("Mean precision score svm model:", mean(precisionscores_svm))
-
+#Select 10% of the samples to search for the best parameters
+#It is necessary to work with a reduced number of samples because it could take too long
+x_train_sample, x_test_sample, y_train_sample, y_test_sample = train_test_split(X, Y, random_state=17, train_size=0.1)
 
 def tune_model_svm():
     """
@@ -204,7 +137,8 @@ print("Model built")
 model.fit(x_train_sample, y_train_sample)
 print("Model fitted")
 y_pred = model.predict(x_test_sample)
-print("Best Parameters:", model.best_params_)
+best_parameters = model.best_params_
+print("Best Parameters:", best_parameters)
 
 #Create pipeline for the parameters selected
 pipeline_svm_tuned = Pipeline([
@@ -213,6 +147,14 @@ pipeline_svm_tuned = Pipeline([
         ('svm', MultiOutputClassifier(SVC(kernel="linear")))
     ])
 
+pipeline_svm_tuned = Pipeline([
+        ('vect', CountVectorizer(tokenizer=tokenize, max_df=best_parameters["vect__max_df"], ngram_range= best_parameters["vect__ngram_range"],
+                                 max_features=best_parameters["vect__max_features"])),
+        ('tfidf', TfidfTransformer(use_idf=best_parameters["tfidf_use_idf"])),
+        ('svm', MultiOutputClassifier(SVC(kernel = best_parameters["svm__estimator__kernel"])))
+    ])
+
+
 #Train the model
 pipeline_svm_tuned.fit(x_train, y_train)
 
@@ -220,20 +162,8 @@ y_pred = pipeline_svm_tuned.predict(x_test)
 y_pred = pd.DataFrame.from_records(y_pred)
 y_pred.columns = y_test.columns
 
-f1scores_svm_tuned = []
-recallscores_svm_tuned = []
-precisionscores_svm_tuned = []
-for col in y_test:
-    f1scores_svm_tuned.append(f1_score(y_test[col], y_pred[col], average="weighted"))
-    recallscores_svm_tuned.append(recall_score(y_test[col], y_pred[col], average="weighted"))
-    precisionscores_svm_tuned.append(precision_score(y_test[col], y_pred[col], average="weighted"))
+tuned_svm_model_result = scores(y_pred, y_test)
 
-svm_tuned_result = pd.DataFrame(list(zip(y_test.columns, f1scores_svm_tuned, recallscores_svm_tuned, precisionscores_svm_tuned)),
-                                      columns=["Column", "F1_score", "Recall", "Precision"])
-
-print("Mean F1 score adjusted model:", mean(f1scores_svm_tuned))
-print("Mean recall score adjusted model:", mean(recallscores_svm_tuned))
-print("Mean precision score adjusted model:", mean(precisionscores_svm_tuned))
 
 #Save the model
 pkl_filename = "svm_model_tuned.pkl"
