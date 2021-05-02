@@ -4,8 +4,8 @@ from sqlalchemy import create_engine
 
 def load_data(messages_filepath, categories_filepath):
     """
-    Read two datasets and merege them in one dataframe.
-    :input messages data, categories data
+    Read two datasets and merge them in one dataframe.
+    :param messages data, categories data
     :output dataframe
     """
     messages = pd.read_csv(messages_filepath)
@@ -15,6 +15,14 @@ def load_data(messages_filepath, categories_filepath):
     return df
 
 def clean_data(df):
+    """
+    Gets the orginal dataframe with the data and returns a cleaned dataframe.
+    The proccess of cleaning involves:
+    - converting the categories variable into dummy variables
+    - removing wrong values
+    - removing useless columns
+    - removing duplicates
+    """
     # create a dataframe of the 36 individual category columns
     categories = df.categories.str.split(";", expand=True)
     #extract column names from the first row of categories
@@ -40,11 +48,19 @@ def clean_data(df):
     return df
 
 def save_data(df, database_filename):
+    """
+    Saves a dataframe into a SQL database
+    :params dataframe, darabase name
+    :return SQL database
+    """
     engine = create_engine("sqlite:///" + database_filename)
     df.to_sql("DisasterResponse", engine, index=False)
 
 
 def main():
+    """
+    Runs the script
+    """
     if len(sys.argv) == 4:
 
         messages_filepath, categories_filepath, database_filepath = sys.argv[1:]

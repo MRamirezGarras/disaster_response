@@ -13,18 +13,23 @@ from sqlalchemy import create_engine
 
 app = Flask(__name__)
 
-
 def tokenize(text):
-    tokens = word_tokenize(text)
-    lemmatizer = WordNetLemmatizer()
-
+    """
+    This function get a piece of text and returns a list of tokens for text classification
+    :input text
+    :return list of tokens
+    """
+    #Create a list to store the data
     clean_tokens = []
-    for tok in tokens:
+    lemmatizer = WordNetLemmatizer()
+    text = re.sub(r'[^\w\s]', " ", text)  # Remove unusual symbols
+    tokens = word_tokenize(text)
+    words = [w for w in tokens if w not in stopwords.words("english")]  # Remove stopwords
+    #Lemmatize eache word and add it to the list
+    for tok in words:
         clean_tok = lemmatizer.lemmatize(tok).lower().strip()
         clean_tokens.append(clean_tok)
-
-    return clean_tokens
-
+    return (clean_tokens)
 
 # load data
 engine = create_engine('sqlite:///../data/DisasterResponse.db')
@@ -32,7 +37,6 @@ df = pd.read_sql_table('DisasterResponse', engine)
 
 # load model
 model = joblib.load("../models/svm_model_tuned.pkl")
-
 
 # index webpage displays cool visuals and receives user input text for model
 @app.route('/')
@@ -43,24 +47,58 @@ def index():
     genre_counts = df.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
 
+    genre_prop = round(100 * genre_counts / genre_counts.sum(), 2)
+
+    category_counts = df.iloc[: ,4:39].sum(axis=0)
+    category_names = df.iloc[: ,4:39].columns
+
     # create visuals
     # TODO: Below is an example - modify to create your own visuals
     graphs = [
         {
+            "data": [
+                {
+                    "type": "pie",
+                    "uid": "f4de1f",
+                    "hole": 0.4,
+                    "name": "Genre",
+                    "pull": 0,
+                    "domain": {
+                        "x": genre_prop,
+                        "y": genre_names
+                    },
+                    "marker": {
+                        "colors": [
+                            "#a27fc9",
+                            "#f0f252",
+                            "#0a450c"
+                        ]
+                    },
+                    "textinfo": "label+value",
+                    "hoverinfo": "all",
+                    "labels": genre_names,
+                    "values": genre_prop
+                }
+            ],
+            "layout": {
+                "title": "Messages by Genre"
+            }
+        },
+        {
             'data': [
                 Bar(
-                    x=genre_names,
-                    y=genre_counts
+                    x=category_names,
+                    y=category_counts
                 )
             ],
 
             'layout': {
-                'title': 'Distribution of Message Genres',
+                'title': 'Distribution of Message categories',
                 'yaxis': {
                     'title': "Count"
                 },
                 'xaxis': {
-                    'title': "Genre"
+                    'title': ""
                 }
             }
         }

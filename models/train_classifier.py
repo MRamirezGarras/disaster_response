@@ -23,12 +23,19 @@ nltk.download('stopwords')
 
 
 def load_data(database_filepath):
+    """
+    Reads the SQL database and splits it into predidtor variable (messages) and response variables (categories).
+    Extracts the categories names from the columns names.
+    :param database path
+    :return dataframe with predictor, dataframe with response variables, list of categories
+    """
     # load data from database
     engine = create_engine("sqlite:///" + database_filepath).connect()
     df = pd.read_sql_table(database_filepath, engine)
-    # Split values in two variables
+    # Split values in two dataframes
     X = df["message"]
     Y = df.iloc[:, 4:40]
+    #Get the categories names
     categories = Y.columns
 
     return (X, Y, categories)
@@ -37,12 +44,16 @@ def load_data(database_filepath):
 def tokenize(text):
     """
     This function get a piece of text and returns a list of tokens for text classification
+    :input text
+    :return list of tokens
     """
+    #Create a list to store the data
     clean_tokens = []
     lemmatizer = WordNetLemmatizer()
     text = re.sub(r'[^\w\s]', " ", text)  # Remove unusual symbols
     tokens = word_tokenize(text)
     words = [w for w in tokens if w not in stopwords.words("english")]  # Remove stopwords
+    #Lemmatize eache word and add it to the list
     for tok in words:
         clean_tok = lemmatizer.lemmatize(tok).lower().strip()
         clean_tokens.append(clean_tok)
@@ -50,6 +61,11 @@ def tokenize(text):
 
 
 def build_model(best_parameters):
+    """
+    Constructs a SVM model from a list of best parameters
+    :param best_parameters:
+    :return model
+    """
     pipeline_svm = Pipeline([
         ('vect', CountVectorizer(tokenizer=tokenize, max_df=best_parameters["vect__max_df"],
                                  ngram_range=best_parameters["vect__ngram_range"],
@@ -83,6 +99,11 @@ def tune_model():
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
+    """
+    Fits a model and compares the prediction to the real data. Prints F1 score, recall and precision
+    for each category, as well as the mean values.
+    :param model to evaluate, dataframe with predictor, dataframe with response, list of category names
+    """
     y_pred = model.predict(X_test)  # Fit the model
     y_pred = pd.DataFrame.from_records(y_pred)  # Store the predictions in a dataframe
     y_pred.columns = category_names
@@ -92,6 +113,7 @@ def evaluate_model(model, X_test, Y_test, category_names):
     recallscores = []
     precisionscores = []
 
+    #Print the values for the metrics
     for col in X_test:
         print(col)
         f1score = f1_score(Y_test[col], y_pred[col], average="weighted")
@@ -110,11 +132,18 @@ def evaluate_model(model, X_test, Y_test, category_names):
 
 
 def save_model(model, model_filepath):
+    """
+    Saves a model in a pkl file
+    :param model, save name
+    """
     with open(model_filepath, 'wb') as file:
         pickle.dump(model, file)
 
 
 def main():
+    """
+    Runs the script
+    """
     if len(sys.argv) == 3:
         database_filepath, model_filepath = sys.argv[1:]
         print('Loading data...\n    DATABASE: {}'.format(database_filepath))
