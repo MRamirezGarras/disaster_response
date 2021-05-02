@@ -5,24 +5,24 @@ categories related to natural disasters. This algorithm could greatly improve re
 an emergency.
 
 ## Files:
-###data folder
+### data 
 **disaster_categories.csv** stores the categories of each tweet
 **disaster_messages** stores the text of each tweet
 **process_data.py** merges the two previous files, cleans them and stores them in a SQL database
 **DisasterResponse.db** is the database created using the previous file
 
-###models folder
+### models 
 **train_classifier** uses the SQL database to train a SVM algorithm to predict the category of a 
 tweet based on its text
 **svm_model_tuned.pkl** stores the model created with the previous file
 
-###app folder
+### app 
 **templates** contain the templates for the application
 **run.py** runs the application. It shows visualizations of the training data and predicts categories of
 texts that are input in a text box
 
 
-##Running the code
+## Running the code
 This repository includes the SQL database and the SVM model, so it is not strictly necessary to run 
 **process_data.py** or **train_classifier.py**. In case you want to run them, you can run the ETL 
 pipeline with:
